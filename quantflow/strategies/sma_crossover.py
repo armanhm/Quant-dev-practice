@@ -1,8 +1,9 @@
+# quantflow/strategies/sma_crossover.py
 from __future__ import annotations
 
 from quantflow.core.models import Asset, Direction
 from quantflow.core.events import EventBus, MarketDataEvent
-from quantflow.strategies.base import Strategy
+from quantflow.strategies.base import Strategy, IndicatorBuffer
 
 
 class SMACrossover(Strategy):
@@ -26,26 +27,27 @@ class SMACrossover(Strategy):
         super().__init__(event_bus=event_bus, assets=assets)
 
     def init(self) -> None:
+        self._sma_fast = self.indicator("sma", period=self.fast_period)
+        self._sma_slow = self.indicator("sma", period=self.slow_period)
         for asset in self.assets:
             self._prev_position[asset] = Direction.FLAT
 
     def next(self, event: MarketDataEvent) -> None:
-        bars = self.bars[event.asset]
-        if len(bars) < self.slow_period:
+        asset = event.asset
+        fast = self._sma_fast.latest(asset)
+        slow = self._sma_slow.latest(asset)
+
+        if fast != fast or slow != slow:  # NaN check
             return
 
-        closes = [b.close for b in bars]
-        fast_sma = sum(closes[-self.fast_period:]) / self.fast_period
-        slow_sma = sum(closes[-self.slow_period:]) / self.slow_period
-
-        if fast_sma > slow_sma:
+        if fast > slow:
             new_direction = Direction.LONG
-        elif fast_sma < slow_sma:
+        elif fast < slow:
             new_direction = Direction.SHORT
         else:
             return
 
-        prev = self._prev_position[event.asset]
+        prev = self._prev_position[asset]
         if new_direction != prev:
             self.signal(direction=new_direction, strength=1.0)
-            self._prev_position[event.asset] = new_direction
+            self._prev_position[asset] = new_direction
