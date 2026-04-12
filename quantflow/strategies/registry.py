@@ -6,6 +6,7 @@ from quantflow.strategies.mean_reversion import MeanReversion
 from quantflow.strategies.rsi_macd import RSIMACDCombo
 from quantflow.strategies.pairs_trading import PairsTrading
 from quantflow.strategies.macro_regime import MacroRegime
+from quantflow.strategies.composite import CompositeStrategy
 
 STRATEGY_REGISTRY: dict[str, type] = {
     "sma_crossover": SMACrossover,
@@ -13,6 +14,7 @@ STRATEGY_REGISTRY: dict[str, type] = {
     "rsi_macd": RSIMACDCombo,
     "pairs_trading": PairsTrading,
     "macro_regime": MacroRegime,
+    "composite": CompositeStrategy,
 }
 
 
