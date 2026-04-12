@@ -1,7 +1,9 @@
+import math
 import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timezone
+from quantflow.data.indicators import sma as sma_func
 
 from quantflow.core.models import Asset, AssetClass, Bar, Direction
 from quantflow.core.events import MarketDataEvent, SignalEvent, EventBus
@@ -152,3 +154,51 @@ class TestSMACrossover:
 
         long_signals = [s for s in self.signals if s.signal.direction == Direction.LONG]
         assert len(long_signals) <= 2
+
+
+class IndicatorStrategy(Strategy):
+    """Strategy that uses the indicator API for testing."""
+    def init(self) -> None:
+        self.sma_fast = self.indicator("sma", period=3)
+        self.sma_slow = self.indicator("sma", period=5)
+        self.rsi_val = self.indicator("rsi", period=5)
+    def next(self, event: MarketDataEvent) -> None:
+        pass
+
+
+class TestIndicatorIntegration:
+    def setup_method(self):
+        self.bus = EventBus()
+        self.asset = Asset(symbol="AAPL", asset_class=AssetClass.EQUITY)
+
+    def _emit_bar(self, close: float, day: int):
+        bar = Bar(
+            timestamp=datetime(2024, 1, day, tzinfo=timezone.utc),
+            open=close - 1, high=close + 1, low=close - 2,
+            close=close, volume=1e6,
+        )
+        self.bus.emit(MarketDataEvent(asset=self.asset, bar=bar))
+
+    def test_indicator_returns_buffer(self):
+        strategy = IndicatorStrategy(event_bus=self.bus, assets=[self.asset])
+        assert strategy.sma_fast is not None
+
+    def test_indicator_updates_on_bar(self):
+        strategy = IndicatorStrategy(event_bus=self.bus, assets=[self.asset])
+        prices = [100, 102, 104, 106, 108, 110]
+        for i, p in enumerate(prices):
+            self._emit_bar(close=p, day=i + 1)
+        assert not math.isnan(strategy.sma_fast[self.asset][-1])
+        assert strategy.sma_fast[self.asset][-1] == pytest.approx(108.0)
+
+    def test_indicator_latest_shortcut(self):
+        strategy = IndicatorStrategy(event_bus=self.bus, assets=[self.asset])
+        prices = [100, 102, 104, 106, 108, 110]
+        for i, p in enumerate(prices):
+            self._emit_bar(close=p, day=i + 1)
+        assert strategy.sma_fast.latest(self.asset) == pytest.approx(108.0)
+
+    def test_indicator_not_enough_data_returns_nan(self):
+        strategy = IndicatorStrategy(event_bus=self.bus, assets=[self.asset])
+        self._emit_bar(close=100, day=1)
+        assert math.isnan(strategy.sma_fast.latest(self.asset))
