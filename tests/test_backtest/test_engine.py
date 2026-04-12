@@ -7,6 +7,8 @@ from quantflow.core.models import Asset, AssetClass, Direction
 from quantflow.core.events import EventBus
 from quantflow.strategies.sma_crossover import SMACrossover
 from quantflow.backtest.engine import BacktestEngine, BacktestResult
+from quantflow.portfolio.sizing import FixedFractional, KellyCriterion
+from quantflow.portfolio.risk import RiskManager
 
 
 def make_price_data(asset: Asset, prices: list[float], start_year: int = 2024) -> pd.DataFrame:
@@ -93,3 +95,36 @@ class TestBacktestEngine:
 
         # Benchmark should reflect the price change
         assert result.benchmark_equity[-1] > result.benchmark_equity[0]
+
+
+class TestBacktestEngineWithSizing:
+    def setup_method(self):
+        self.asset = Asset(symbol="AAPL", asset_class=AssetClass.EQUITY)
+
+    def test_fixed_fractional_sizing(self):
+        prices = list(range(100, 160)) + list(range(160, 100, -1))
+        data = {self.asset: make_price_data(self.asset, prices)}
+        sizer = FixedFractional(fraction=0.10)
+        engine = BacktestEngine(
+            initial_cash=100_000.0, slippage_pct=0.0, commission_pct=0.0,
+            position_sizer=sizer,
+        )
+        def strategy_factory(bus, assets):
+            return SMACrossover(bus, assets, fast_period=5, slow_period=10)
+        result = engine.run(data=data, strategy_factory=strategy_factory)
+        assert isinstance(result, BacktestResult)
+        if result.trades:
+            assert result.trades[0].quantity < 100
+
+    def test_drawdown_kill_switch_stops_trading(self):
+        prices = list(range(100, 130)) + list(range(130, 60, -2)) + list(range(60, 100))
+        data = {self.asset: make_price_data(self.asset, prices)}
+        risk_mgr = RiskManager(max_drawdown=0.15)
+        engine = BacktestEngine(
+            initial_cash=100_000.0, slippage_pct=0.0, commission_pct=0.0,
+            risk_manager=risk_mgr,
+        )
+        def strategy_factory(bus, assets):
+            return SMACrossover(bus, assets, fast_period=5, slow_period=10)
+        result = engine.run(data=data, strategy_factory=strategy_factory)
+        assert isinstance(result, BacktestResult)

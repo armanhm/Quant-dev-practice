@@ -15,6 +15,8 @@ from quantflow.core.events import (
 )
 from quantflow.backtest.execution import SimulatedExecution
 from quantflow.strategies.base import Strategy
+from quantflow.portfolio.sizing import FixedFractional
+from quantflow.portfolio.risk import RiskManager
 
 
 @dataclass
@@ -56,11 +58,39 @@ class BacktestEngine:
         slippage_pct: float = 0.0005,
         commission_pct: float = 0.0,
         position_size_pct: float = 0.95,
+        position_sizer=None,
+        risk_manager: RiskManager | None = None,
     ) -> None:
         self.initial_cash = initial_cash
         self.slippage_pct = slippage_pct
         self.commission_pct = commission_pct
         self.position_size_pct = position_size_pct
+        self.position_sizer = position_sizer
+        self.risk_manager = risk_manager
+
+    def _current_equity(
+        self,
+        cash: float,
+        positions: dict[Asset, Position],
+        current_prices: dict[Asset, float],
+    ) -> float:
+        equity = cash
+        for asset, pos in positions.items():
+            price = current_prices.get(asset, pos.entry_price)
+            equity += pos.quantity * price
+        return equity
+
+    def _calculate_quantity(
+        self,
+        asset: Asset,
+        price: float,
+        equity: float,
+        signal_strength: float = 1.0,
+    ) -> float:
+        if self.position_sizer is not None:
+            return self.position_sizer.calculate_quantity(asset, price, equity, signal_strength)
+        available = equity * self.position_size_pct
+        return available / price if price > 0 else 0.0
 
     def run(
         self,
@@ -70,6 +100,10 @@ class BacktestEngine:
         bus = EventBus()
         assets = list(data.keys())
 
+        # Reset risk manager state at the start of each run
+        if self.risk_manager is not None:
+            self.risk_manager.reset()
+
         # State
         cash = self.initial_cash
         positions: dict[Asset, Position] = {}
@@ -78,6 +112,7 @@ class BacktestEngine:
         trades: list[Trade] = []
         signals: list[SignalEvent] = []
         current_prices: dict[Asset, float] = {}
+        peak_equity: float = self.initial_cash
 
         # Execution
         executor = SimulatedExecution(
@@ -126,8 +161,24 @@ class BacktestEngine:
                     del positions[asset]
 
                 # Open long
-                available = cash * self.position_size_pct
-                quantity = available / price
+                equity = self._current_equity(cash, positions, current_prices)
+                quantity = self._calculate_quantity(asset, price, equity, sig.strength)
+                if self.risk_manager is not None:
+                    quantity = self.risk_manager.adjust_quantity(asset, quantity, price, equity)
+                    allowed = self.risk_manager.check_new_position(
+                        asset=asset,
+                        quantity=quantity,
+                        price=price,
+                        equity=equity,
+                        cash=cash,
+                        positions=positions,
+                        current_prices=current_prices,
+                        peak_equity=peak_equity,
+                    )
+                    if not allowed:
+                        return
+                # Guard: cannot buy more than available cash
+                quantity = min(quantity, cash / price) if price > 0 else quantity
                 if quantity > 0:
                     order = Order(
                         asset=asset, side=OrderSide.BUY,
@@ -169,8 +220,22 @@ class BacktestEngine:
                     del positions[asset]
 
                 # Open short
-                available = cash * self.position_size_pct
-                quantity = available / price
+                equity = self._current_equity(cash, positions, current_prices)
+                quantity = self._calculate_quantity(asset, price, equity, sig.strength)
+                if self.risk_manager is not None:
+                    quantity = self.risk_manager.adjust_quantity(asset, quantity, price, equity)
+                    allowed = self.risk_manager.check_new_position(
+                        asset=asset,
+                        quantity=quantity,
+                        price=price,
+                        equity=equity,
+                        cash=cash,
+                        positions=positions,
+                        current_prices=current_prices,
+                        peak_equity=peak_equity,
+                    )
+                    if not allowed:
+                        return
                 if quantity > 0:
                     order = Order(
                         asset=asset, side=OrderSide.SELL,
@@ -219,16 +284,13 @@ class BacktestEngine:
                         first_prices[asset] = bar.close
 
             # Calculate equity
-            equity = cash
-            for asset, pos in positions.items():
-                price = current_prices.get(asset, pos.entry_price)
-                if pos.quantity > 0:
-                    equity += pos.quantity * price
-                else:
-                    equity += pos.quantity * price
+            equity = self._current_equity(cash, positions, current_prices)
 
             equity_curve.append(equity)
             timestamps.append(ts)
+
+            # Update peak equity for drawdown tracking
+            peak_equity = max(peak_equity, equity)
 
             # Benchmark
             bench = self.initial_cash
