@@ -1,0 +1,10 @@
+# config/default_config.yaml
+strategy: sma_crossover
+params:
+  fast_period: 10
+  slow_period: 50
+assets:
+  - AAPL
+start: "2020-01-01"
+end: "2024-12-31"
+initial_cash: 100000
