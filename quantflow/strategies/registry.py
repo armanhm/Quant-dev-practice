@@ -1,0 +1,30 @@
+"""Maps strategy string names to their classes for CLI and config lookup."""
+from __future__ import annotations
+
+from quantflow.strategies.sma_crossover import SMACrossover
+from quantflow.strategies.mean_reversion import MeanReversion
+from quantflow.strategies.rsi_macd import RSIMACDCombo
+
+STRATEGY_REGISTRY: dict[str, type] = {
+    "sma_crossover": SMACrossover,
+    "mean_reversion": MeanReversion,
+    "rsi_macd": RSIMACDCombo,
+}
+
+
+def get_strategy(name: str) -> type:
+    """Look up a strategy class by name. Raises KeyError if not found."""
+    if name not in STRATEGY_REGISTRY:
+        available = ", ".join(sorted(STRATEGY_REGISTRY.keys()))
+        raise KeyError(f"Unknown strategy '{name}'. Available: {available}")
+    return STRATEGY_REGISTRY[name]
+
+
+def list_strategies() -> list[str]:
+    """Return sorted list of registered strategy names."""
+    return sorted(STRATEGY_REGISTRY.keys())
+
+
+def register_strategy(name: str, cls: type) -> None:
+    """Register a new strategy class."""
+    STRATEGY_REGISTRY[name] = cls
