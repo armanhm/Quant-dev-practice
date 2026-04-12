@@ -110,7 +110,8 @@ class BacktestEngine:
                     )
                     fill = executor.execute(close_order, price)
                     pnl = (current_pos.entry_price - fill.fill_price) * abs(current_pos.quantity)
-                    cash += abs(current_pos.quantity) * fill.fill_price - fill.commission
+                    # Buy back shares to close short: pay cash
+                    cash -= fill.fill_price * fill.fill_quantity + fill.commission
                     trades.append(Trade(
                         asset=asset,
                         entry_time=sig.timestamp,
