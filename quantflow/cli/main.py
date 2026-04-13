@@ -242,6 +242,25 @@ def optimize_walk_forward(strategy_name, assets, start, end, params, train_bars,
     cache.close()
 
 
+@cli.command("paper")
+@click.option("--symbol", required=True, help="Stock symbol")
+@click.option("--strategy", "strategy_name", required=True, help="Strategy name")
+@click.option("--days", default=30, help="Days of recent data")
+@click.option("--cash", default=100000.0, help="Initial cash")
+def paper_command(symbol, strategy_name, days, cash):
+    """Run paper trading with live Alpaca data."""
+    import os
+    api_key = os.environ.get("ALPACA_API_KEY")
+    secret_key = os.environ.get("ALPACA_SECRET_KEY")
+    if not api_key or not secret_key:
+        click.echo("Error: Set ALPACA_API_KEY and ALPACA_SECRET_KEY environment variables.")
+        click.echo("Get keys at: https://app.alpaca.markets/")
+        return
+    from quantflow.live.paper_trader import PaperTrader
+    trader = PaperTrader(api_key=api_key, secret_key=secret_key)
+    trader.run(symbol=symbol, strategy_name=strategy_name, days=days, initial_cash=cash)
+
+
 @cli.command("dashboard")
 def dashboard_command():
     """Launch the Streamlit dashboard."""
