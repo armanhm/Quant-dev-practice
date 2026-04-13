@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  quantflow:
+    build: .
+    volumes:
+      - quantflow-data:/root/.quantflow
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ALPACA_API_KEY=${ALPACA_API_KEY:-}
+      - ALPACA_SECRET_KEY=${ALPACA_SECRET_KEY:-}
+      - FRED_API_KEY=${FRED_API_KEY:-}
+
+  dashboard:
+    build: .
+    command: streamlit run quantflow/dashboard/app.py --server.headless true --server.port 8501
+    ports:
+      - "8501:8501"
+    volumes:
+      - quantflow-data:/root/.quantflow
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+volumes:
+  quantflow-data:
