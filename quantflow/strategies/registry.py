@@ -7,6 +7,14 @@ from quantflow.strategies.rsi_macd import RSIMACDCombo
 from quantflow.strategies.pairs_trading import PairsTrading
 from quantflow.strategies.macro_regime import MacroRegime
 from quantflow.strategies.composite import CompositeStrategy
+from quantflow.strategies.ml_classifier import MLClassifier
+
+# LSTM requires PyTorch -- optional import
+try:
+    from quantflow.strategies.lstm_forecaster import LSTMForecaster
+    _HAS_LSTM = True
+except ImportError:
+    _HAS_LSTM = False
 
 STRATEGY_REGISTRY: dict[str, type] = {
     "sma_crossover": SMACrossover,
@@ -15,7 +23,11 @@ STRATEGY_REGISTRY: dict[str, type] = {
     "pairs_trading": PairsTrading,
     "macro_regime": MacroRegime,
     "composite": CompositeStrategy,
+    "ml_classifier": MLClassifier,
 }
+
+if _HAS_LSTM:
+    STRATEGY_REGISTRY["lstm_forecaster"] = LSTMForecaster
 
 
 def get_strategy(name: str) -> type:

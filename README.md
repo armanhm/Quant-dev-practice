@@ -153,15 +153,15 @@ pytest tests/ -v
 
 ## Roadmap
 
-- [ ] SQLite caching for market data
-- [ ] FRED macro data integration
-- [ ] CCXT / CoinGecko crypto data
-- [ ] Pairs Trading strategy (cointegration)
-- [ ] Macro Regime strategy
-- [ ] Walk-forward optimization
-- [ ] Parameter sweep runner
-- [ ] CLI via click
-- [ ] ML/DL strategies (Random Forest, LSTM, RL)
+- [x] SQLite caching for market data
+- [x] FRED macro data integration
+- [x] CCXT / CoinGecko crypto data
+- [x] Pairs Trading strategy (cointegration)
+- [x] Macro Regime strategy
+- [x] Walk-forward optimization
+- [x] Parameter sweep runner
+- [x] CLI via click
+- [x] ML/DL strategies (Random Forest, LSTM)
 - [ ] LLM-powered research assistant
 - [ ] Streamlit dashboard
 - [ ] Paper trading via Alpaca API
