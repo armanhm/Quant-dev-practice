@@ -242,5 +242,14 @@ def optimize_walk_forward(strategy_name, assets, start, end, params, train_bars,
     cache.close()
 
 
+@cli.command("dashboard")
+def dashboard_command():
+    """Launch the Streamlit dashboard."""
+    import subprocess
+    import sys
+    subprocess.run([sys.executable, "-m", "streamlit", "run",
+                    "quantflow/dashboard/app.py", "--server.headless", "true"])
+
+
 if __name__ == "__main__":
     cli()
