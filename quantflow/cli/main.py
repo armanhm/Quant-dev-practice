@@ -251,5 +251,26 @@ def dashboard_command():
                     "quantflow/dashboard/app.py", "--server.headless", "true"])
 
 
+@cli.command("chat")
+@click.argument("message", required=False)
+def chat_command(message):
+    """Chat with the QuantFlow AI assistant."""
+    if message:
+        import os
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            click.echo("Error: Set ANTHROPIC_API_KEY environment variable.")
+            return
+        from quantflow.assistant.provider import ClaudeProvider
+        from quantflow.assistant.chat import ChatSession
+        provider = ClaudeProvider(api_key=api_key)
+        session = ChatSession(provider=provider)
+        response = session.send(message)
+        click.echo(response)
+    else:
+        from quantflow.assistant.chat import run_interactive_chat
+        run_interactive_chat()
+
+
 if __name__ == "__main__":
     cli()
