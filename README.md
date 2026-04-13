@@ -162,10 +162,10 @@ pytest tests/ -v
 - [x] Parameter sweep runner
 - [x] CLI via click
 - [x] ML/DL strategies (Random Forest, LSTM)
-- [ ] LLM-powered research assistant
-- [ ] Streamlit dashboard
-- [ ] Paper trading via Alpaca API
-- [ ] Docker containerization
+- [x] LLM-powered research assistant (Claude API)
+- [x] Streamlit dashboard
+- [x] Paper trading via Alpaca API
+- [x] Docker containerization
 
 ## License
 
